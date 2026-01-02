@@ -18,7 +18,7 @@
 
     <div id="map"></div>
     <div class="controls">
-        <input type="text" id="polygon-name" placeholder="Name this area (e.g. Block A)..." />
+        <input type="text" id="polygon-name" placeholder="Name this area (e.g. North Field)..." />
         <button id="locate-btn" type="button">📍 Find My Location</button>
         <button id="save-btn" type="button">Save to DataRelic</button>
     </div>
@@ -31,16 +31,12 @@
         const urlParams = new URLSearchParams(window.location.search);
         const RECORD_ID = urlParams.get('recordId');
         
-        // Settings
-        const TEAMDESK_API_TOKEN = "853579C2326B4FE6A9B2D7BC49E266B2"; 
-        const DB_ID = "89329"; 
-        const TABLE_NAME = "blocks"; 
+        // YOUR NEW WEBHOOK URL
+        const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/y7rkz4k3";
 
-        // Map Setup
         var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
         var map = L.map('map', { center: [0, 0], zoom: 2, layers: [satellite] });
 
-        // Locate Me Logic
         document.getElementById('locate-btn').onclick = function() {
             this.innerText = "⌛ Finding you...";
             map.locate({setView: true, maxZoom: 16, enableHighAccuracy: true});
@@ -48,10 +44,9 @@
 
         map.on('locationfound', function(e) {
             document.getElementById('locate-btn').innerText = "📍 Find My Location";
-            L.marker(e.latlng).addTo(map).bindPopup("You are here").openPopup();
+            L.marker(e.latlng).addTo(map).bindPopup("Current Position").openPopup();
         });
 
-        // Drawing Setup
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
         var drawControl = new L.Control.Draw({
@@ -73,7 +68,7 @@
             layer.bindPopup("<b>" + currentAreaHectares + " Hectares</b>").openPopup();
         });
 
-        // SAVE LOGIC - Updated for CORS bypass
+        // SAVE LOGIC VIA WEBHOOK
         document.getElementById('save-btn').onclick = async function() {
             var data = drawnItems.toGeoJSON();
             var name = document.getElementById('polygon-name').value;
@@ -87,29 +82,27 @@
             saveBtn.disabled = true;
             saveBtn.innerText = "Saving...";
 
-            // Prepare data as URL parameters (Form Encoded)
-            const params = new URLSearchParams();
-            params.append("Id", RECORD_ID);
-            params.append("Area Name", name);
-            params.append("Hectares", currentAreaHectares);
-            params.append("Coordinates", JSON.stringify(data.features[0].geometry.coordinates));
+            const payload = {
+                "recordId": RECORD_ID,
+                "areaName": name,
+                "hectares": currentAreaHectares,
+                "coordinates": JSON.stringify(data.features[0].geometry.coordinates)
+            };
 
             try {
-        const apiUrl = `https://www.app.datarelic.co.za/api/v2/${DB_ID}/${TEAMDESK_API_TOKEN}/${TABLE_NAME}/update.json`;
-        
-        // 'no-cors' tells the browser: "Just send it, don't worry about the reply"
-        fetch(apiUrl, {
-            method: 'POST',
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params
-        });
+                // We use 'no-cors' to ensure the browser doesn't block the outgoing data
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-        alert("Save command sent! Please refresh the page in 5 seconds to see the update.");
-        
-    } catch (err) {
-        alert("Still blocked. We need to use Option B (Webhooks).");
-    } finally {
+                alert("✅ Success! Data sent to TeamDesk. Please refresh your record page.");
+                
+            } catch (err) {
+                alert("❌ Connection failed. Check internet connection.");
+            } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerText = "Save to DataRelic";
             }
@@ -117,4 +110,3 @@
     </script>
 </body>
 </html>
-
