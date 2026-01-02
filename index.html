@@ -18,7 +18,7 @@
 
     <div id="map"></div>
     <div class="controls">
-        <input type="text" id="polygon-name" placeholder="Name this area (e.g. North Field)..." />
+        <input type="text" id="polygon-name" placeholder="Name this area (e.g. Block 1)..." />
         <button id="locate-btn" type="button">📍 Find My Location</button>
         <button id="save-btn" type="button">Save to DataRelic</button>
     </div>
@@ -31,7 +31,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const RECORD_ID = urlParams.get('recordId');
         
-        // YOUR NEW WEBHOOK URL
+        // YOUR WEBHOOK URL
         const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/y7rkz4k3";
 
         var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
@@ -64,49 +64,4 @@
             var layer = event.layer;
             drawnItems.addLayer(layer);
             var sqm = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-            currentAreaHectares = (sqm / 10000).toFixed(2);
-            layer.bindPopup("<b>" + currentAreaHectares + " Hectares</b>").openPopup();
-        });
-
-        // SAVE LOGIC VIA WEBHOOK
-        document.getElementById('save-btn').onclick = async function() {
-            var data = drawnItems.toGeoJSON();
-            var name = document.getElementById('polygon-name').value;
-            
-            if (!RECORD_ID || data.features.length === 0 || !name) {
-                alert("Please draw a polygon and enter a name.");
-                return;
-            }
-
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
-
-            const payload = {
-                "recordId": RECORD_ID,
-                "areaName": name,
-                "hectares": currentAreaHectares,
-                "coordinates": JSON.stringify(data.features[0].geometry.coordinates)
-            };
-
-            try {
-                // We use 'no-cors' to ensure the browser doesn't block the outgoing data
-                await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                alert("✅ Success! Data sent to TeamDesk. Please refresh your record page.");
-                
-            } catch (err) {
-                alert("❌ Connection failed. Check internet connection.");
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerText = "Save to DataRelic";
-            }
-        };
-    </script>
-</body>
-</html>
+            currentAreaHectares = (sqm / 1000
