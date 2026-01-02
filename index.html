@@ -99,22 +99,56 @@
         layer.bindPopup("<b>" + currentAreaHectares + " Hectares</b>").openPopup();
     });
 
-    document.getElementById('save-btn').onclick = async function() {
-        var data = drawnItems.toGeoJSON();
-        var name = document.getElementById('polygon-name').value;
-        if (!RECORD_ID || data.features.length === 0 || !name) {
-            alert("Ensure you draw a polygon, name it, and have a valid Record ID.");
-            return;
-        }
-        const payload = { "Id": RECORD_ID, "Area Name": name, "Hectares": currentAreaHectares, "Coordinates": JSON.stringify(data.features[0].geometry.coordinates) };
-        try {
-            const response = await fetch("https://www.app.datarelic.co.za/api/v2/" + DB_ID + "/" + TEAMDESK_API_TOKEN + "/" + TABLE_NAME + "/update.json", {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            if (response.ok) alert("✅ Saved!"); else alert("❌ Error saving.");
-        } catch (err) { alert("❌ Connection failed."); }
+   document.getElementById('save-btn').onclick = async function() {
+    var data = drawnItems.toGeoJSON();
+    var name = document.getElementById('polygon-name').value;
+    
+    if (!RECORD_ID || data.features.length === 0 || !name) {
+        alert("Ensure you draw a polygon, name it, and have a valid Record ID.");
+        return;
+    }
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerText = "Saving...";
+
+    const payload = { 
+        "Id": RECORD_ID, 
+        "Area Name": name, 
+        "Hectares": currentAreaHectares, 
+        "Coordinates": JSON.stringify(data.features[0].geometry.coordinates) 
     };
+
+    try {
+        // Updated URL format to be more CORS-friendly
+        const apiUrl = "https://www.app.datarelic.co.za/api/v2/" + DB_ID + "/" + TEAMDESK_API_TOKEN + "/" + TABLE_NAME + "/update.json";
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            mode: 'cors', // Explicitly ask for CORS
+            headers: { 
+                'Accept': 'application/json',
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert("✅ Saved Successfully!");
+        } else {
+            const errorText = await response.text();
+            alert("❌ Server Error: " + errorText);
+        }
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        alert("❌ Connection failed. This usually means the API is blocking the request from the iframe.");
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Save to DataRelic";
+    }
+};
     </script>
 </body>
 </html>
+
 
