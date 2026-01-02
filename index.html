@@ -95,22 +95,21 @@
             params.append("Coordinates", JSON.stringify(data.features[0].geometry.coordinates));
 
             try {
-                const apiUrl = `https://www.app.datarelic.co.za/api/v2/${DB_ID}/${TEAMDESK_API_TOKEN}/${TABLE_NAME}/update.json`;
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params
-                });
+        const apiUrl = `https://www.app.datarelic.co.za/api/v2/${DB_ID}/${TEAMDESK_API_TOKEN}/${TABLE_NAME}/update.json`;
+        
+        // 'no-cors' tells the browser: "Just send it, don't worry about the reply"
+        fetch(apiUrl, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
 
-                // With some CORS setups, the browser blocks the 'reading' of the response 
-                // but the 'sending' still works. We assume success if no catch error.
-                alert("Save request sent! Check your TeamDesk record.");
-                
-            } catch (err) {
-                console.error("Save error:", err);
-                alert("Connection failed. Please check your internet or API settings.");
-            } finally {
+        alert("Save command sent! Please refresh the page in 5 seconds to see the update.");
+        
+    } catch (err) {
+        alert("Still blocked. We need to use Option B (Webhooks).");
+    } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerText = "Save to DataRelic";
             }
@@ -118,3 +117,4 @@
     </script>
 </body>
 </html>
+
