@@ -18,7 +18,7 @@
 
     <div id="map"></div>
     <div class="controls">
-        <input type="text" id="polygon-name" placeholder="Name this area..." />
+        <input type="text" id="polygon-name" placeholder="Name this area (e.g. Block 1)..." />
         <button id="locate-btn" type="button">📍 Find My Location</button>
         <button id="save-btn" type="button">Save to DataRelic</button>
     </div>
@@ -30,6 +30,8 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const RECORD_ID = urlParams.get('recordId');
+        
+        // YOUR WEBHOOK URL
         const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/y7rkz4k3";
 
         var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
@@ -51,59 +53,4 @@
             edit: { featureGroup: drawnItems },
             draw: { 
                 polygon: { allowIntersection: false, showArea: true, shapeOptions: { color: '#28a745' } }, 
-                polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false 
-            }
-        });
-        map.addControl(drawControl);
-
-        var currentAreaHectares = 0;
-        map.on(L.Draw.Event.CREATED, function (event) {
-            drawnItems.clearLayers(); 
-            var layer = event.layer;
-            drawnItems.addLayer(layer);
-            var sqm = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-            currentAreaHectares = (sqm / 10000).toFixed(2);
-            layer.bindPopup("<b>" + currentAreaHectares + " Hectares</b>").openPopup();
-        });
-
-        // Updated Save Logic for "URL Request" Sender
-        document.getElementById('save-btn').onclick = async function() {
-            var data = drawnItems.toGeoJSON();
-            var name = document.getElementById('polygon-name').value;
-            
-            if (!RECORD_ID || data.features.length === 0 || !name) {
-                alert("Please draw a polygon and enter a name.");
-                return;
-            }
-
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
-
-            // Prepare data as a URL-encoded form
-            const body = new URLSearchParams();
-            body.append('recordId', RECORD_ID);
-            body.append('areaName', name);
-            body.append('hectares', currentAreaHectares);
-            body.append('coordinates', JSON.stringify(data.features[0].geometry.coordinates));
-
-            try {
-                await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Bypasses CORS and works perfectly with URL Request sender
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body
-                });
-
-                alert("✅ Save request sent! Refresh TeamDesk to see the update.");
-                
-            } catch (err) {
-                alert("❌ Connection failed.");
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerText = "Save to DataRelic";
-            }
-        };
-    </script>
-</body>
-</html>
+                polyline: false, rectangle:
