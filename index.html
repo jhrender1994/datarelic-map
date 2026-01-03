@@ -16,10 +16,9 @@
     </style>
 </head>
 <body>
-
     <div id="map"></div>
     <div class="controls">
-        <input type="text" id="polygon-name" placeholder="Name this area (e.g. Block A)">
+        <input type="text" id="polygon-name" placeholder="Name this area...">
         <button id="locate-btn" type="button">📍 Find My Location</button>
         <button id="save-btn" type="button">Save to DataRelic</button>
     </div>
@@ -29,31 +28,23 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.min.js"></script>
     
     <script>
-        // Settings - Check these carefully!
+        // NEW ENDPOINT APPLIED
         const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/orfjgabz";
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const RECORD_ID = urlParams.get('recordId');
+        
+        // This cleaning logic removes quotes, commas, and brackets sent by the formula error
+        let rawId = urlParams.get('recordId') || "";
+        const RECORD_ID = rawId.replace(/[\[\]"', ]/g, '');
 
-        // 1. Setup Map
         var map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Esri'
-        }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }).addTo(map);
 
-        // 2. Locate Button
-        document.getElementById('locate-btn').onclick = function() {
-            map.locate({setView: true, maxZoom: 16});
-        };
-
-        map.on('locationfound', function(e) {
-            L.marker(e.latlng).addTo(map).bindPopup("Found you!").openPopup();
-        });
-
-        // 3. Drawing Tools
+        document.getElementById('locate-btn').onclick = function() { map.locate({setView: true, maxZoom: 16}); };
+        
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
         var drawControl = new L.Control.Draw({
-            edit: { featureGroup: drawnItems },
             draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false }
         });
         map.addControl(drawControl);
@@ -68,17 +59,21 @@
             layer.bindPopup(areaSize + " Hectares").openPopup();
         });
 
-        // 4. Save Button
         document.getElementById('save-btn').onclick = function() {
             var name = document.getElementById('polygon-name').value;
-            if (!RECORD_ID || drawnItems.getLayers().length === 0 || !name) {
-                alert("Please draw an area and enter a name.");
+            
+            // DEBUG ALERT: This helps you see if the ID is clean
+            if (!RECORD_ID) {
+                alert("ERROR: No Record ID found in the URL. Check your TeamDesk Dashboard formula.");
+                return;
+            }
+
+            if (drawnItems.getLayers().length === 0 || !name) {
+                alert("Missing Name or Drawing!");
                 return;
             }
 
             var coords = drawnItems.toGeoJSON().features[0].geometry.coordinates;
-            
-            // This is a standard "Form" post which is very hard for browsers to block
             var formData = new FormData();
             formData.append('recordId', RECORD_ID);
             formData.append('areaName', name);
@@ -86,10 +81,9 @@
             formData.append('coordinates', JSON.stringify(coords));
 
             fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: formData })
-                .then(() => alert("✅ Data Sent! Refresh TeamDesk to see the change."))
-                .catch(() => alert("❌ Error sending data."));
+                .then(() => alert("✅ Data Sent for Record ID: " + RECORD_ID + ". Please refresh your TeamDesk page."))
+                .catch(() => alert("❌ Connection Error"));
         };
     </script>
 </body>
 </html>
-
