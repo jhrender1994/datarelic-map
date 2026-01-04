@@ -31,7 +31,6 @@
         const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/orfjgabz";
         
         const urlParams = new URLSearchParams(window.location.search);
-        
         let rawId = urlParams.get('recordId') || "";
         const RECORD_ID = rawId.replace(/[\[\]"', ]/g, '');
 
@@ -41,27 +40,25 @@
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
-        // --- START OF NEW CODE: LOAD SAVED DATA ---
+        // --- LOAD SAVED DATA & ADD HOVER ---
         const coordsData = urlParams.get('coordinates');
+        const hectaresData = urlParams.get('hectares') || "0"; // Get hectares from URL if available
+
         if (coordsData && coordsData !== "") {
             try {
-                // Reconstruct GeoJSON from the URL coordinates
                 const geojsonData = {
                     "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": JSON.parse(coordsData)
-                    }
+                    "geometry": { "type": "Polygon", "coordinates": JSON.parse(coordsData) }
                 };
 
                 const existingLayer = L.geoJSON(geojsonData).addTo(drawnItems);
+                
+                // Add the hover tooltip for existing records
+                existingLayer.bindTooltip(hectaresData + " Hectares", { sticky: true });
+                
                 map.fitBounds(existingLayer.getBounds());
-                console.log("Loaded existing coordinates successfully.");
-            } catch (e) {
-                console.error("Error parsing saved coordinates:", e);
-            }
+            } catch (e) { console.error("Error parsing saved coordinates:", e); }
         }
-        // --- END OF NEW CODE ---
 
         document.getElementById('locate-btn').onclick = function() { map.locate({setView: true, maxZoom: 16}); };
         
@@ -75,23 +72,20 @@
             drawnItems.clearLayers();
             var layer = e.layer;
             drawnItems.addLayer(layer);
+            
+            // Calculate Hectares
             var sqm = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
             areaSize = (sqm / 10000).toFixed(2);
-            layer.bindPopup(areaSize + " Hectares").openPopup();
+            
+            // ADD HOVER TOOLTIP TO NEW DRAWING
+            // "sticky: true" makes the label follow the mouse cursor
+            layer.bindTooltip(areaSize + " Hectares", { sticky: true }).openTooltip();
         });
 
         document.getElementById('save-btn').onclick = function() {
             var name = document.getElementById('polygon-name').value;
-            
-            if (!RECORD_ID) {
-                alert("ERROR: No Record ID found.");
-                return;
-            }
-
-            if (drawnItems.getLayers().length === 0 || !name) {
-                alert("Missing Name or Drawing!");
-                return;
-            }
+            if (!RECORD_ID) { alert("ERROR: No Record ID found."); return; }
+            if (drawnItems.getLayers().length === 0 || !name) { alert("Missing Name or Drawing!"); return; }
 
             var coords = drawnItems.toGeoJSON().features[0].geometry.coordinates;
             var formData = new FormData();
@@ -103,7 +97,6 @@
             fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: formData })
                 .then(() => {
                     alert("✅ Data Saved! Refreshing...");
-                    // Refresh the page so the new coordinates are loaded into the map
                     window.location.reload();
                 })
                 .catch(() => alert("❌ Connection Error"));
