@@ -28,22 +28,43 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.min.js"></script>
     
     <script>
-        // NEW ENDPOINT APPLIED
         const WEBHOOK_URL = "https://www.app.datarelic.co.za/secure/db/89329/hooks/orfjgabz";
         
         const urlParams = new URLSearchParams(window.location.search);
         
-        // This cleaning logic removes quotes, commas, and brackets sent by the formula error
         let rawId = urlParams.get('recordId') || "";
         const RECORD_ID = rawId.replace(/[\[\]"', ]/g, '');
 
         var map = L.map('map').setView([0, 0], 2);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }).addTo(map);
 
-        document.getElementById('locate-btn').onclick = function() { map.locate({setView: true, maxZoom: 16}); };
-        
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
+
+        // --- START OF NEW CODE: LOAD SAVED DATA ---
+        const coordsData = urlParams.get('coordinates');
+        if (coordsData && coordsData !== "") {
+            try {
+                // Reconstruct GeoJSON from the URL coordinates
+                const geojsonData = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": JSON.parse(coordsData)
+                    }
+                };
+
+                const existingLayer = L.geoJSON(geojsonData).addTo(drawnItems);
+                map.fitBounds(existingLayer.getBounds());
+                console.log("Loaded existing coordinates successfully.");
+            } catch (e) {
+                console.error("Error parsing saved coordinates:", e);
+            }
+        }
+        // --- END OF NEW CODE ---
+
+        document.getElementById('locate-btn').onclick = function() { map.locate({setView: true, maxZoom: 16}); };
+        
         var drawControl = new L.Control.Draw({
             draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false }
         });
@@ -62,9 +83,8 @@
         document.getElementById('save-btn').onclick = function() {
             var name = document.getElementById('polygon-name').value;
             
-            // DEBUG ALERT: This helps you see if the ID is clean
             if (!RECORD_ID) {
-                alert("ERROR: No Record ID found in the URL. Check your TeamDesk Dashboard formula.");
+                alert("ERROR: No Record ID found.");
                 return;
             }
 
@@ -81,7 +101,11 @@
             formData.append('coordinates', JSON.stringify(coords));
 
             fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: formData })
-                .then(() => alert("✅ Data Sent for Record ID: " + RECORD_ID + ". Please refresh your TeamDesk page."))
+                .then(() => {
+                    alert("✅ Data Saved! Refreshing...");
+                    // Refresh the page so the new coordinates are loaded into the map
+                    window.location.reload();
+                })
                 .catch(() => alert("❌ Connection Error"));
         };
     </script>
